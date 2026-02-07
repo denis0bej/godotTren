@@ -1,11 +1,18 @@
 extends CharacterBody2D
 
+const SPEED = 400.0 # O viteză vizibilă
+
+func _enter_tree():
+	set_multiplayer_authority(name.to_int())
+
 func _physics_process(delta: float) -> void:
-	if Input.is_action_pressed("w"):
-		velocity.y = 1;
-	if Input.is_action_pressed("s"):
-		velocity.y = -1;
-	if Input.is_action_pressed("d"):
-		velocity.x = 1;
-	if Input.is_action_pressed("a"):
-		velocity.x = -1;
+	if not is_multiplayer_authority():
+		return
+	var direction = Input.get_vector("a", "d", "w", "s")
+	
+	if direction:
+		velocity = direction * SPEED
+	else:
+		velocity = Vector2.ZERO # Se oprește instant
+
+	move_and_slide()
