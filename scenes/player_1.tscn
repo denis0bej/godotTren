@@ -6,6 +6,7 @@
 radius = 67.26812
 
 [node name="Player1" type="CharacterBody2D" unique_id=207465901]
+motion_mode = 1
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=1316325150]
 texture = ExtResource("1_rfmnd")
