@@ -6,6 +6,7 @@ const DEFAULT_IP = "100.83.73.83"
 var peer = ENetMultiplayerPeer.new()
 
 func _ready():
+	peer.set_bind_ip("0.0.0.0")
 	# HOOK UP THE SIGNALS
 	# These fire when the connection actually happens
 	multiplayer.peer_connected.connect(_on_player_connected)
@@ -32,7 +33,13 @@ func _on_connection_failed():
 	print("FAILED! Could not connect. Check IP/Firewall.")
 
 func _on_host_pressed() -> void:
-	peer.create_server(PORT)
+	var error = peer.create_server(PORT)
+	if error != OK:
+		print("Cannot host: " + str(error))
+		return
+	else:
+		print("worked")
+
 	multiplayer.multiplayer_peer = peer
 
 	load_game_lvl()
@@ -42,6 +49,7 @@ func _on_join_pressed() -> void:
 	peer.create_client(DEFAULT_IP, PORT)
 	multiplayer.multiplayer_peer = peer
 
+	load_game_lvl()
 	print("connecting!")
 
 
