@@ -1,13 +1,15 @@
 extends Node
 
-# Aici ținem referința la jucător și port
 const PORT = 9999
-const DEFAULT_IP = "127.0.0.1" # Sau IP-ul local
+const DEFAULT_IP = "127.0.0.1"
+const MAX_PLAYERS = 2 
+const SPAWN_POS_P1 = Vector2(200, 300) # Left Side
+const SPAWN_POS_P2 = Vector2(0, 700) # Right Side
+
 var peer = ENetMultiplayerPeer.new()
-var player_scene = preload("res://scenes/player_1.tscn") # Preîncărcăm jucătorul
+var player_scene = preload("res://scenes/player_1.tscn")
 
 func _ready():
-	# Conectăm semnalele AICI, în scriptul nemuritor
 	multiplayer.peer_connected.connect(_on_player_connected)
 	multiplayer.peer_disconnected.connect(_on_player_disconnected)
 	multiplayer.connected_to_server.connect(_on_connection_success)
@@ -16,41 +18,54 @@ func _ready():
 func host_game():
 	peer.create_server(PORT)
 	multiplayer.multiplayer_peer = peer
-	print("Server creat!")
-	change_level("res://main.tscn") # Schimbăm scena după ce creăm serverul
+	print("Server Created!")
+	change_level("res://scenes/main.tscn")
 
 func join_game(ip):
 	peer.create_client(ip, PORT)
 	multiplayer.multiplayer_peer = peer
-	print("Mă conectez...")
-	# NOTĂ: Clientul NU schimbă scena încă! Așteaptă să se conecteze.
+	print("Connecting...")
 
 func _on_connection_success():
-	print("M-am conectat la Host!")
-	# Abia acum Clientul intră în joc
-	change_level("res://main.tscn")
+	print("Connected to Host!")
+	change_level("res://scenes/main.tscn")
+
+func _on_connection_failed():
+	print("Error couldn't connect to host")
 
 func _on_player_connected(id):
-	print("Jucător nou: " + str(id))
-	# AICI faci spawn-ul! Pentru că scriptul ăsta există mereu.
-	spawn_player(id)
+	print("Player Connected: " + str(id))
+	# ONLY THE SERVER SHOULD SPAWN PLAYERS
+	if multiplayer.is_server():
+		spawn_player(id)
 
 func _on_player_disconnected(id):
 	print("Player Disconnected: " + str(id))
-
-# Runs ONLY on Client if they can't find the host after a few seconds
-func _on_connection_failed():
-	print("FAILED! Could not connect. Check IP/Firewall.")
-
+	# Optional: Clean up player node if needed, though Spawner might handle it.
+	var main = get_tree().current_scene
+	if main.name == "Main":
+		var player = main.get_node("Players").get_node_or_null(str(id))
+		if player: player.queue_free()
 
 func spawn_player(id):
-	# Verificăm dacă suntem în scena de joc (Main), nu în meniu
-	# Altfel încercăm să spawnăm jucători peste butoanele de meniu
 	var main = get_tree().current_scene
-	if main.name == "Main": # Asigură-te că nodul rădăcină din main.tscn se numește "Main"
+	if main.name == "Main":
 		var p = player_scene.instantiate()
 		p.name = str(id)
-		main.add_child(p) # Sau main.get_node("Players").add_child(p)
+		
+		if id == 1:
+			p.position = SPAWN_POS_P1 # Host goes Left
+		else:
+			p.position = SPAWN_POS_P2 # Client goes Right
+		
+		# Add to the "Players" node so MultiplayerSpawner sees it!
+		main.get_node("Players").add_child(p) 
 
 func change_level(scene_path):
 	get_tree().change_scene_to_file(scene_path)
+	
+# We need to spawn the Host's player once they enter the Main scene
+func _on_scene_changed():
+	# If we are the server and we just loaded Main, spawn ourselves (ID 1)
+	if multiplayer.is_server() and get_tree().current_scene.name == "Main":
+		spawn_player(1)
